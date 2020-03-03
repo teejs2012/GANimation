@@ -17,43 +17,50 @@ def plot_au(img, aus, title=None):
     # display img
     ax.imshow(img)
 
-    if len(aus) == 11:
-        au_ids = ['1','2','4','5','6','9','12','17','20','25','26']
-        x = 0.1
-        y = 0.39
-        i = 0
-        for au, id in zip(aus, au_ids):
-            if id == '9':
-                x = 0.5
-                y -= .15
-                i = 0
-            elif id == '12':
-                x = 0.1
-                y -= .15
-                i = 0
+    for au in aus:
+        x=10
+        y=50
+        ax.text(x, y, au, horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, color='b', fontsize=20)
+        y+=20
 
-            ax.text(x + i * 0.2, y, id, horizontalalignment='center', verticalalignment='center',
-                    transform=ax.transAxes, color='r', fontsize=20)
-            ax.text((x-0.001)+i*0.2, y-0.07, au, horizontalalignment='center', verticalalignment='center',
-                    transform=ax.transAxes, color='b', fontsize=20)
-            i+=1
-
-    else:
-        au_ids = ['1', '2', '4', '5', '6', '7', '9', '10', '12', '14', '15', '17', '20', '23', '25', '26', '45']
-        x = 0.1
-        y = 0.39
-        i = 0
-        for au, id in zip(aus, au_ids):
-            if id == '9' or id == '20':
-                x = 0.1
-                y -= .15
-                i = 0
-
-            ax.text(x + i * 0.2, y, id, horizontalalignment='center', verticalalignment='center',
-                    transform=ax.transAxes, color='r', fontsize=20)
-            ax.text((x-0.001)+i*0.2, y-0.07, au, horizontalalignment='center', verticalalignment='center',
-                    transform=ax.transAxes, color='b', fontsize=20)
-            i+=1
+    # if len(aus) == 11:
+    #     au_ids = ['1','2','4','5','6','9','12','17','20','25','26']
+    #     x = 0.1
+    #     y = 0.39
+    #     i = 0
+    #     for au, id in zip(aus, au_ids):
+    #         if id == '9':
+    #             x = 0.5
+    #             y -= .15
+    #             i = 0
+    #         elif id == '12':
+    #             x = 0.1
+    #             y -= .15
+    #             i = 0
+    #
+    #         ax.text(x + i * 0.2, y, id, horizontalalignment='center', verticalalignment='center',
+    #                 transform=ax.transAxes, color='r', fontsize=20)
+    #         ax.text((x-0.001)+i*0.2, y-0.07, au, horizontalalignment='center', verticalalignment='center',
+    #                 transform=ax.transAxes, color='b', fontsize=20)
+    #         i+=1
+    #
+    # else:
+    #     au_ids = ['1', '2', '4', '5', '6', '7', '9', '10', '12', '14', '15', '17', '20', '23', '25', '26', '45']
+    #     x = 0.1
+    #     y = 0.39
+    #     i = 0
+    #     for au, id in zip(aus, au_ids):
+    #         if id == '9' or id == '20':
+    #             x = 0.1
+    #             y -= .15
+    #             i = 0
+    #
+    #         ax.text(x + i * 0.2, y, id, horizontalalignment='center', verticalalignment='center',
+    #                 transform=ax.transAxes, color='r', fontsize=20)
+    #         ax.text((x-0.001)+i*0.2, y-0.07, au, horizontalalignment='center', verticalalignment='center',
+    #                 transform=ax.transAxes, color='b', fontsize=20)
+    #         i+=1
 
     if title is not None:
         ax.text(0.5, 0.95, title, horizontalalignment='center', verticalalignment='center',
