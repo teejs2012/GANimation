@@ -102,7 +102,7 @@ class AusDataset(DatasetBase):
         filepath = os.path.join(self._imgs_dir, id+'.json')
         with open(filepath) as file:
             _cond = json.load(file)
-            return _cond
+            return np.array(_cond)
         # if id in self._conds:
         #     return self._conds[id]
         # else:
