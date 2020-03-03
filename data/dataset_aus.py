@@ -118,4 +118,5 @@ class AusDataset(DatasetBase):
             rand_sample_id = self._ids[random.randint(0, self._dataset_size - 1)]
             cond = self._get_cond_by_id(rand_sample_id)
             cond += np.random.uniform(-0.1, 0.1, cond.shape)
+            cond = np.clip(cond,a_min=0,a_max=1)
         return cond
