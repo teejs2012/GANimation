@@ -6,7 +6,8 @@ import random
 import numpy as np
 import pickle
 from utils import cv_utils
-
+import glob
+import json
 
 class AusDataset(DatasetBase):
     def __init__(self, opt, is_for_train):
@@ -63,15 +64,22 @@ class AusDataset(DatasetBase):
         self._imgs_dir = os.path.join(self._root, self._opt.images_folder)
 
         # read ids
-        use_ids_filename = self._opt.train_ids_file if self._is_for_train else self._opt.test_ids_file
-        use_ids_filepath = os.path.join(self._root, use_ids_filename)
-        self._ids = self._read_ids(use_ids_filepath)
+        # use_ids_filename = self._opt.train_ids_file if self._is_for_train else self._opt.test_ids_file
+        # use_ids_filepath = os.path.join(self._root, use_ids_filename)
+        json_filenames = glob.glob(self._imgs_dir+'/*.json')
+        self._ids = []
+        self._conds = []
+        for filename in json_filenames:
+            self._ids.append(os.path.basename(filename).split('.')[0])
+            with open(filename) as file:
+                _cond = json.load(file)
+                self._conds.append(_cond)
 
         # read aus
-        conds_filepath = os.path.join(self._root, self._opt.aus_file)
-        self._conds = self._read_conds(conds_filepath)
-
-        self._ids = list(set(self._ids).intersection(set(self._conds.keys())))
+        # conds_filepath = os.path.join(self._root, self._opt.aus_file)
+        # self._conds = self._read_conds(conds_filepath)
+        #
+        # self._ids = list(set(self._ids).intersection(set(self._conds.keys())))
 
         # dataset size
         self._dataset_size = len(self._ids)
@@ -90,17 +98,9 @@ class AusDataset(DatasetBase):
                               ]
         self._transform = transforms.Compose(transform_list)
 
-    def _read_ids(self, file_path):
-        ids = np.loadtxt(file_path, delimiter='\t', dtype=np.str)
-        return [id[:-4] for id in ids]
-
-    def _read_conds(self, file_path):
-        with open(file_path, 'rb') as f:
-            return pickle.load(f)
-
     def _get_cond_by_id(self, id):
         if id in self._conds:
-            return self._conds[id]/5.0
+            return self._conds[id]
         else:
             return None
 
