@@ -16,10 +16,9 @@ def plot_au(img, aus, title=None):
 
     # display img
     ax.imshow(img)
-
+    x = 0.1
+    y = 0.4
     for au in aus:
-        x=0.1
-        y=0.4
         ax.text(x, y, au, horizontalalignment='center', verticalalignment='center',
                 transform=ax.transAxes, color='b', fontsize=20)
         y-=0.1
