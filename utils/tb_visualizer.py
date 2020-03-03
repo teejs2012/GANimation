@@ -3,7 +3,7 @@ import os
 import time
 from . import util
 from tensorboardX import SummaryWriter
-
+import torch
 
 class TBVisualizer:
     def __init__(self, opt):
@@ -24,7 +24,8 @@ class TBVisualizer:
     def display_current_results(self, visuals, it, is_train, save_visuals=False):
         for label, image_numpy in visuals.items():
             sum_name = '{}/{}'.format('Train' if is_train else 'Test', label)
-            self._writer.add_image(sum_name, image_numpy, it)
+            img_to_add = np.transpose(torch.tensor(image_numpy),(2,0,1))
+            self._writer.add_image(sum_name, img_to_add, it)
 
             if save_visuals:
                 util.save_image(image_numpy,
