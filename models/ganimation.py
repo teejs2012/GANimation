@@ -346,9 +346,12 @@ class GANimation(BaseModel):
 
         # input visuals
         title_input_img = os.path.basename(self._input_real_img_path[0])
-        visuals['1_input_img'] = plot_utils.plot_au(self._vis_real_img, self._vis_real_cond, title=title_input_img)
-        visuals['2_fake_img'] = plot_utils.plot_au(self._vis_fake_img, self._vis_desired_cond)
-        visuals['3_rec_real_img'] = plot_utils.plot_au(self._vis_rec_real_img, self._vis_real_cond)
+        # visuals['1_input_img'] = plot_utils.plot_au(self._vis_real_img, self._vis_real_cond, title=title_input_img)
+        # visuals['2_fake_img'] = plot_utils.plot_au(self._vis_fake_img, self._vis_desired_cond)
+        # visuals['3_rec_real_img'] = plot_utils.plot_au(self._vis_rec_real_img, self._vis_real_cond)
+        visuals['1_input_img'] = self._vis_real_img
+        visuals['2_fake_img'] = self._vis_fake_img
+        visuals['3_rec_real_img'] = self._vis_rec_real_img
         visuals['4_fake_img_unmasked'] = self._vis_fake_img_unmasked
         visuals['5_fake_img_mask'] = self._vis_fake_img_mask
         visuals['6_rec_real_img_mask'] = self._vis_rec_real_img_mask
