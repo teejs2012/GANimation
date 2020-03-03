@@ -18,11 +18,11 @@ def plot_au(img, aus, title=None):
     ax.imshow(img)
 
     for au in aus:
-        x=10
-        y=50
+        x=0.1
+        y=0.4
         ax.text(x, y, au, horizontalalignment='center', verticalalignment='center',
                 transform=ax.transAxes, color='b', fontsize=20)
-        y+=20
+        y-=0.1
 
     # if len(aus) == 11:
     #     au_ids = ['1','2','4','5','6','9','12','17','20','25','26']
