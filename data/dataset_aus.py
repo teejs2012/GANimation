@@ -68,12 +68,12 @@ class AusDataset(DatasetBase):
         # use_ids_filepath = os.path.join(self._root, use_ids_filename)
         json_filenames = glob.glob(self._imgs_dir+'/*.json')
         self._ids = []
-        self._conds = []
+        # self._conds = []
         for filename in json_filenames:
             self._ids.append(os.path.basename(filename).split('.')[0])
-            with open(filename) as file:
-                _cond = json.load(file)
-                self._conds.append(_cond)
+            # with open(filename) as file:
+            #     _cond = json.load(file)
+                # self._conds.append(_cond)
 
         # read aus
         # conds_filepath = os.path.join(self._root, self._opt.aus_file)
@@ -99,10 +99,14 @@ class AusDataset(DatasetBase):
         self._transform = transforms.Compose(transform_list)
 
     def _get_cond_by_id(self, id):
-        if id in self._conds:
-            return self._conds[id]
-        else:
-            return None
+        filepath = os.path.join(self._imgs_dir, id+'.json')
+        with open(filepath) as file:
+            _cond = json.load(file)
+            return _cond
+        # if id in self._conds:
+        #     return self._conds[id]
+        # else:
+        #     return None
 
     def _get_img_by_id(self, id):
         filepath = os.path.join(self._imgs_dir, id+'.jpg')
