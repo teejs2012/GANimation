@@ -13,7 +13,7 @@ class AusDataset(DatasetBase):
     def __init__(self, opt, is_for_train):
         super(AusDataset, self).__init__(opt, is_for_train)
         self._name = 'AusDataset'
-
+        self._is_for_train = is_for_train
         # read dataset
         self._read_dataset_paths()
 
@@ -66,21 +66,15 @@ class AusDataset(DatasetBase):
         # read ids
         # use_ids_filename = self._opt.train_ids_file if self._is_for_train else self._opt.test_ids_file
         # use_ids_filepath = os.path.join(self._root, use_ids_filename)
-        json_filenames = glob.glob(self._imgs_dir+'/*.json')
+        json_filenames = glob.glob(self._imgs_dir+'/*/*.json')
         self._ids = []
         # self._conds = []
         for filename in json_filenames:
-            self._ids.append(os.path.basename(filename).split('.')[0])
-            # with open(filename) as file:
-            #     _cond = json.load(file)
-                # self._conds.append(_cond)
-
-        # read aus
-        # conds_filepath = os.path.join(self._root, self._opt.aus_file)
-        # self._conds = self._read_conds(conds_filepath)
-        #
-        # self._ids = list(set(self._ids).intersection(set(self._conds.keys())))
-
+            self._ids.append(filename.split('.')[0])
+        if self._is_for_train:
+            self._ids = self._ids[:-3]
+        else:
+            self._ids = self._ids[-3:]
         # dataset size
         self._dataset_size = len(self._ids)
 
@@ -99,7 +93,7 @@ class AusDataset(DatasetBase):
         self._transform = transforms.Compose(transform_list)
 
     def _get_cond_by_id(self, id):
-        filepath = os.path.join(self._imgs_dir, id+'.json')
+        filepath = id+'.json'
         with open(filepath) as file:
             _cond = json.load(file)
             return np.array(_cond)
@@ -109,7 +103,7 @@ class AusDataset(DatasetBase):
         #     return None
 
     def _get_img_by_id(self, id):
-        filepath = os.path.join(self._imgs_dir, id+'.jpg')
+        filepath = id+'.jpg'
         return cv_utils.read_cv2_img(filepath), filepath
 
     def _generate_random_cond(self):
