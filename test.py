@@ -19,6 +19,7 @@ class MorphFacesInTheWild:
         self._model = ModelsFactory.get_by_name(self._opt.model, self._opt)
         self._model.set_eval()
         self._transform = transforms.Compose([transforms.ToTensor(),
+                                              transforms.Resize((128,128)),
                                               transforms.Normalize(mean=[0.5, 0.5, 0.5],
                                                                    std=[0.5, 0.5, 0.5])
                                               ])
@@ -30,22 +31,22 @@ class MorphFacesInTheWild:
         self._save_img(morphed_img, output_name)
 
     def _img_morph(self, img, expresion):
-        bbs = face_recognition.face_locations(img)
-        if len(bbs) > 0:
-            y, right, bottom, x = bbs[0]
-            bb = x, y, (right - x), (bottom - y)
-            face = face_utils.crop_face_with_bb(img, bb)
-            face = face_utils.resize_face(face)
-        else:
-            face = face_utils.resize_face(img)
+        # bbs = face_recognition.face_locations(img)
+        # if len(bbs) > 0:
+        #     y, right, bottom, x = bbs[0]
+        #     bb = x, y, (right - x), (bottom - y)
+        #     face = face_utils.crop_face_with_bb(img, bb)
+        #     face = face_utils.resize_face(face)
+        # else:
+        #     face = face_utils.resize_face(img)
 
-        morphed_face = self._morph_face(face, expresion)
+        morphed_face = self._morph_face(img, expresion)
 
         return morphed_face
 
     def _morph_face(self, face, expresion):
         face = torch.unsqueeze(self._transform(Image.fromarray(face)), 0)
-        expresion = torch.unsqueeze(torch.from_numpy(expresion/5.0), 0)
+        expresion = torch.unsqueeze(torch.from_numpy(expresion), 0)
         test_batch = {'real_img': face, 'real_cond': expresion, 'desired_cond': expresion, 'sample_id': torch.FloatTensor(), 'real_img_path': []}
         self._model.set_input(test_batch)
         imgs, _ = self._model.forward(keep_data_for_visuals=False, return_estimates=True)
