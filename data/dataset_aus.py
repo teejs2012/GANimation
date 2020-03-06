@@ -72,9 +72,9 @@ class AusDataset(DatasetBase):
         for filename in json_filenames:
             self._ids.append(filename.split('.')[0])
         if self._is_for_train:
-            self._ids = self._ids[:-3]
+            self._ids = self._ids[:-2000]
         else:
-            self._ids = self._ids[-3:]
+            self._ids = self._ids[-2000:]
         # dataset size
         self._dataset_size = len(self._ids)
 
