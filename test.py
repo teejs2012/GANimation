@@ -24,10 +24,10 @@ class MorphFacesInTheWild:
                                                                    std=[0.5, 0.5, 0.5])
                                               ])
 
-    def morph_file(self, img_path, expresion):
+    def morph_file(self, img_path, expresion, ind):
         img = cv_utils.read_cv2_img(img_path)
         morphed_img = self._img_morph(img, expresion)
-        output_name = '%s_out.png' % os.path.basename(img_path)
+        output_name = '%s_out_%d.png' % (os.path.basename(img_path),ind)
         self._save_img(morphed_img, output_name)
 
     def _img_morph(self, img, expresion):
@@ -66,8 +66,13 @@ def main():
     morph = MorphFacesInTheWild(opt)
 
     image_path = opt.input_path
-    expression = np.random.uniform(0, 1, opt.cond_nc)
-    morph.morph_file(image_path, expression)
+
+    for i in range(10):
+        param = i/10
+        print(param)
+        cond = np.array([param,param])
+    # expression = np.random.uniform(0, 1, opt.cond_nc)
+        morph.morph_file(image_path, cond,i)
 
 
 
