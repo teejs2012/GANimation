@@ -23,33 +23,25 @@ class MorphFacesInTheWild:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5],std=[0.5, 0.5, 0.5])])
 
-    def morph_file(self, img_path, expresion, ind):
+    def morph_file(self, img_path):
         img = cv_utils.read_cv2_img(img_path)
-        morphed_img = self._img_morph(img, expresion)
-        output_name = '%s_out_%d.png' % (os.path.basename(img_path),ind)
-        self._save_img(morphed_img, output_name)
+        for i in range(10):
+            param = i / 10
+            print(param)
+            cond = np.array([param, 1 - param])
+            morphed_img, original_cond = self._morph_face(img, cond)
+            print(original_cond)
+            output_name = '%s_out_%d.png' % (os.path.basename(img_path),i)
+            self._save_img(morphed_img, output_name)
 
-    def _img_morph(self, img, expresion):
-        # bbs = face_recognition.face_locations(img)
-        # if len(bbs) > 0:
-        #     y, right, bottom, x = bbs[0]
-        #     bb = x, y, (right - x), (bottom - y)
-        #     face = face_utils.crop_face_with_bb(img, bb)
-        #     face = face_utils.resize_face(face)
-        # else:
-        #     face = face_utils.resize_face(img)
-
-        morphed_face = self._morph_face(img, expresion)
-
-        return morphed_face
 
     def _morph_face(self, face, expresion):
         face = torch.unsqueeze(self._transform(Image.fromarray(face)), 0)
         expresion = torch.unsqueeze(torch.from_numpy(expresion), 0)
         test_batch = {'real_img': face, 'real_cond': expresion, 'desired_cond': expresion, 'sample_id': torch.FloatTensor(), 'real_img_path': []}
         self._model.set_input(test_batch)
-        imgs, _ = self._model.forward(keep_data_for_visuals=False, return_estimates=True)
-        return imgs['concat']
+        imgs, data = self._model.predict()
+        return imgs['concat'],data['real_cond']
 
     def _save_img(self, img, filename):
         filepath = os.path.join(self._opt.output_dir, filename)
@@ -66,12 +58,7 @@ def main():
 
     image_path = opt.input_path
 
-    for i in range(10):
-        param = i/10
-        print(param)
-        cond = np.array([param,1-param])
-    # expression = np.random.uniform(0, 1, opt.cond_nc)
-        morph.morph_file(image_path, cond,i)
+    morph.morph_file(image_path)
 
 
 
