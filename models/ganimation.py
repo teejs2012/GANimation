@@ -199,6 +199,8 @@ class GANimation(BaseModel):
         # convert tensor to variables
         real_img = Variable(self._input_real_img, volatile=True)
         _, real_cond = self._D.forward(real_img)
+        real_cond = real_cond[0, ...].numpy()
+        print(real_cond.shape)
         # real_cond = Variable(self._input_real_cond, volatile=True)
         desired_cond = Variable(self._input_desired_cond, volatile=True)
 
@@ -239,7 +241,7 @@ class GANimation(BaseModel):
                             ('concat', im_concat_img)
                             ])
 
-        data = OrderedDict([('real_cond', real_cond.data[0, ...].cpu().numpy().astype('str'))
+        data = OrderedDict([('real_cond', real_cond.cpu().astype('str'))
                             ])
 
 
