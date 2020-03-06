@@ -63,13 +63,13 @@ class BaseOptions():
             if self._opt.load_epoch == -1:
                 load_epoch = 0
                 for file in os.listdir(models_dir):
-                    if file.startswith("net_epoch_"):
+                    if file.startswith("net_"):
                         load_epoch = max(load_epoch, int(file.split('_')[2]))
                 self._opt.load_epoch = load_epoch
             else:
                 found = False
                 for file in os.listdir(models_dir):
-                    if file.startswith("net_epoch_"):
+                    if file.startswith("net_"):
                         found = int(file.split('_')[2]) == self._opt.load_epoch
                         if found: break
                 assert found, 'Model for epoch %i not found' % self._opt.load_epoch
