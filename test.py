@@ -2,9 +2,9 @@ import os
 import argparse
 import glob
 import cv2
-from utils import face_utils
+# from utils import face_utils
 from utils import cv_utils
-import face_recognition
+# import face_recognition
 from PIL import Image
 import torchvision.transforms as transforms
 import torch
@@ -18,11 +18,10 @@ class MorphFacesInTheWild:
         self._opt = opt
         self._model = ModelsFactory.get_by_name(self._opt.model, self._opt)
         self._model.set_eval()
-        self._transform = transforms.Compose([transforms.ToTensor(),
-                                              transforms.Resize((128,128)),
-                                              transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                                                   std=[0.5, 0.5, 0.5])
-                                              ])
+        self._transform = transforms.Compose([
+            transforms.Resize((128,128)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5],std=[0.5, 0.5, 0.5])])
 
     def morph_file(self, img_path, expresion, ind):
         img = cv_utils.read_cv2_img(img_path)
@@ -70,7 +69,7 @@ def main():
     for i in range(10):
         param = i/10
         print(param)
-        cond = np.array([param,param])
+        cond = np.array([param,1-param])
     # expression = np.random.uniform(0, 1, opt.cond_nc)
         morph.morph_file(image_path, cond,i)
 
