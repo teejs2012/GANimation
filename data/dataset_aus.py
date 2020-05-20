@@ -62,15 +62,19 @@ class AusDataset(DatasetBase):
 
     def _create_transform(self):
         if self._is_for_train:
-            transform_list = [transforms.RandomHorizontalFlip(),
-                              transforms.ToTensor(),
-                              transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                                   std=[0.5, 0.5, 0.5]),
+            transform_list = [
+                transforms.Resize((self._opt.image_size,self._opt.image_size)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                   std=[0.5, 0.5, 0.5]),
                               ]
         else:
-            transform_list = [transforms.ToTensor(),
-                              transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                                   std=[0.5, 0.5, 0.5]),
+            transform_list = [
+                transforms.Resize((self._opt.image_size,self._opt.image_size)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                   std=[0.5, 0.5, 0.5]),
                               ]
         self._transform = transforms.Compose(transform_list)
 
@@ -78,11 +82,11 @@ class AusDataset(DatasetBase):
         filepath = id+'.json'
         with open(filepath) as file:
             _cond = json.load(file)
-            return np.array(_cond)
+            return np.array(_cond,dtype=np.float32)
 
     def _get_img_by_id(self, id):
         filepath = id+'.jpg'
         return cv_utils.read_cv2_img(filepath), filepath
 
     def _generate_random_cond(self):
-        return np.random.uniform(0, 1, [self._opt.cond_nc])
+        return np.random.uniform(0, 1, [self._opt.cond_nc]).astype(np.float32)

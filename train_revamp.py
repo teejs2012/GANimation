@@ -10,6 +10,7 @@ import os.path as osp
 from PIL import Image
 import cv2
 import easydict
+import random
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -20,20 +21,22 @@ from torch.autograd import grad
 from torch import optim
 import torchvision.utils as vutils
 
-from network import generator_wasserstein_gan, discriminator_wasserstein_gan
+from networks.generator_wasserstein_gan import Generator
+from networks.discriminator_wasserstein_gan import Discriminator
+
 from data.dataset_aus import AusDataset
 
 from tensorboardX import SummaryWriter
-writer = SummaryWriter('./runs_alac')
+writer = SummaryWriter('./runs')
 
 args = easydict.EasyDict({
     'seed': 42,
     'gpus': '[0,1,2]',
     'workers': 16,
-    'dataset': '/data/tjs/clean_color',
-    'save_path': 'results',
+    'dataset': '/data/tjs/GANimation/imgs',
+    'save_path': 'checkpoints',
 
-    'batch_size': 18,
+    'batch_size': 12,
     'image_size': 256,
     'cond_nc': 2,
     'do_saturate_mask': False,
@@ -43,7 +46,7 @@ args = easydict.EasyDict({
     'lr': 0.0001,
     'adam_b1': 0.5,
     'adam_b2': 0.999,
-    'lambda_D_cond': 4000,
+    'lambda_D_cond': 400,
     'lambda_cyc': 10,
     'lambda_mask': 0.1,
     'lambda_D_gp': 10,
@@ -66,11 +69,11 @@ torch.manual_seed(args.seed)
 torch.cuda.manual_seed(args.seed)
 cudnn.benchmark = True
 
-netG = generator_wasserstein_gan(c_dim=args.cond_nc)
+netG = Generator(c_dim=args.cond_nc)
 netG.init_weights()
 netG = torch.nn.DataParallel(netG).cuda()
 
-netD = discriminator_wasserstein_gan(image_size=args.image_size, c_dim =args.cond_nc)
+netD = Discriminator(image_size=args.image_size, c_dim =args.cond_nc)
 netD.init_weights()
 netD = torch.nn.DataParallel(netD).cuda()
 
@@ -78,12 +81,12 @@ G_optimizer = optim.Adam(netG.parameters(),lr=args.lr,betas=(args.adam_b1, args.
 D_optimizer = optim.Adam(netD.parameters(),lr=args.lr,betas=(args.adam_b1, args.adam_b2))
 
 train_loader = torch.utils.data.DataLoader(
-    AusDataset(args, is_train=True),
+    AusDataset(args, True),
     batch_size=args.batch_size, shuffle=True,
     num_workers=args.workers, pin_memory=True, drop_last=True)
 
 val_loader = torch.utils.data.DataLoader(
-    AusDataset(args, is_train=False),
+    AusDataset(args, False),
     batch_size=1, shuffle=False,
     num_workers=args.workers, pin_memory=True)
 
@@ -160,11 +163,12 @@ def save_pic(save_epoch, i, img, fake_img, fake_mask, fake_img_masked, rec_img, 
         imgs.append(tensor2img(tensor))
     img, fake_img, fake_mask, fake_img_masked, rec_img, rec_mask, rec_img_masked = imgs
 
-    fake_mask = np.stack((fake_mask[0],) * 3, axis=-1)
-    rec_mask = np.stack((rec_mask[0],) * 3, axis=-1)
+    fake_mask_stack = np.concatenate([fake_mask[0],fake_mask[0],fake_mask[0]], axis=2)
+    rec_mask_stack = np.concatenate([rec_mask[0],rec_mask[0],rec_mask[0]], axis=2)
 
-    combine = np.concatenate([img[0], fake_img[0], fake_mask, fake_img_masked[0], rec_img[0], rec_mask, rec_img_masked[0]], axis=1)
-    save_image(osp.join(save_epoch, str(i) + '.jpg'), combine.astype('uint8'))
+    combine = np.concatenate([img[0], fake_img[0], fake_mask_stack, fake_img_masked[0], rec_img[0], rec_mask_stack, rec_img_masked[0]], axis=1)
+    combine = Image.fromarray(combine.astype('uint8'))
+    combine.save(osp.join(save_epoch, str(i) + '.jpg'))
 
 
 def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_train, last_count_val, cur_lr):
@@ -184,6 +188,9 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
 
         output_real, pred_cond_real = netD(img)
         lossD_real = -output_real.mean()
+        # print(real_cond)
+        # print(pred_cond_real)
+
         lossD_cond = args.lambda_D_cond * criterion_MSE(real_cond,pred_cond_real)
 
         with torch.no_grad():
@@ -195,12 +202,15 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
         output_fake, _ = netD(fake_img_masked)
         lossD_fake = output_fake.mean()
 
-        lossD = lossD_real + lossD_fake + lossD_cond
+        lossD_Gan = lossD_real + lossD_fake
+        lossD = lossD_Gan + lossD_cond
+        writer.add_scalar('Tdata/lossD_Gan', lossD_Gan.item(), last_count_train)
+        writer.add_scalar('Tdata/lossD_cond', lossD_cond.item(), last_count_train)
 
         lossD.backward(retain_graph=True)
 
         gradient_penalty = calc_gradient_penalty(
-            netD, gt, fake, args)
+            netD, img, fake_img_masked, args)
         gradient_penalty.backward()
 
         D_optimizer.step()
@@ -231,8 +241,8 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
             lossG_cyc = args.lambda_cyc * criterion_L1(img, rec_img_masked)            
             lossG_mask_1 = torch.mean(fake_mask) * args.lambda_mask
             lossG_mask_2 = torch.mean(rec_mask) * args.lambda_mask
-            lossG_mask_1_smooth = SmoothLoss(fake_img_mask) * args.lambda_mask_smooth
-            lossG_mask_2_smooth = SmoothLoss(rec_real_img_mask) * args.lambda_mask_smooth
+            lossG_mask_1_smooth = SmoothLoss(fake_mask) * args.lambda_mask_smooth
+            lossG_mask_2_smooth = SmoothLoss(rec_mask) * args.lambda_mask_smooth
             lossG_mask = lossG_mask_1 + lossG_mask_2 + lossG_mask_1_smooth + lossG_mask_2_smooth
 
             loss_G = lossG_fake + lossG_cond_fake + lossG_cyc + lossG_mask
@@ -245,6 +255,7 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
                               lossG_cond_fake.item(), last_count_train)
             writer.add_scalar('Tdata/lossG_cyc', lossG_cyc.item(), last_count_train)
             writer.add_scalar('Tdata/lossG_mask', lossG_mask.item(), last_count_train)
+
             end = time.time()
 
             if i% args.display_freq == 0:
@@ -266,14 +277,14 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
             # save D
             torch.save({'optimizer_state_dict': D_optimizer.state_dict(),
                         }, osp.join(save_epoch, str(epoch) + '_D_optim_' + 'checkpoint.pth.tar'))
-        if i % val_freq == 0:
+        if i % args.val_freq == 0:
             last_count_val = val_net(args,val_loader, netG, netD, save_epoch, last_count_val)
             netG.train()
             netD.train()
     return last_count_train, last_count_val
 
 
-def val_net(args,val_loader, netG, netD, netI, netF, save_epoch, last_count_val):
+def val_net(args,val_loader, netG, netD, save_epoch, last_count_val):
     netG.eval()
     netD.eval()
 
@@ -282,7 +293,7 @@ def val_net(args,val_loader, netG, netD, netI, netF, save_epoch, last_count_val)
             break
         img, real_cond, desired_cond = img.cuda(), real_cond.cuda(), desired_cond.cuda()
         with torch.no_grad():
-           fake_img, fake_mask = netG(img,desired_cond)
+            fake_img, fake_mask = netG(img,desired_cond)
             if args.do_saturate_mask:
                 fake_mask = torch.clamp(0.55*torch.tanh(3*(fake_mask-0.5))+0.5, 0, 1)
             fake_img_masked = fake_mask * img + (1 - fake_mask) * fake_img
@@ -301,8 +312,8 @@ def val_net(args,val_loader, netG, netD, netI, netF, save_epoch, last_count_val)
             lossG_cyc = args.lambda_cyc * criterion_L1(img, rec_img_masked)  
             lossG_mask_1 = torch.mean(fake_mask) * args.lambda_mask
             lossG_mask_2 = torch.mean(rec_mask) * args.lambda_mask
-            lossG_mask_1_smooth = SmoothLoss(fake_img_mask) * args.lambda_mask_smooth
-            lossG_mask_2_smooth = SmoothLoss(rec_real_img_mask) * args.lambda_mask_smooth
+            lossG_mask_1_smooth = SmoothLoss(fake_mask) * args.lambda_mask_smooth
+            lossG_mask_2_smooth = SmoothLoss(rec_mask) * args.lambda_mask_smooth
             lossG_mask = lossG_mask_1 + lossG_mask_2 + lossG_mask_1_smooth + lossG_mask_2_smooth
 
         save_pic(save_epoch, i, img, fake_img, fake_mask, fake_img_masked, rec_img, rec_mask, rec_img_masked)
@@ -320,15 +331,17 @@ def val_net(args,val_loader, netG, netD, netI, netF, save_epoch, last_count_val)
 for epoch in range(args.continue_epoch + 1, args.epochs):
     num_decay_epoch = epoch - int(args.epochs*args.decay_start_ratio)
     total_num_decay = int(args.epochs*(1-args.decay_start_ratio))
-    cur_lr = args.lr * (1-num_decay_epoch/total_num_decay)
+    cur_lr = args.lr
     if num_decay_epoch>0:  
+        cur_lr = args.lr * (1-num_decay_epoch/total_num_decay)
         for param_group in G_optimizer.param_groups:
             param_group['lr'] = cur_lr
         for param_group in D_optimizer.param_groups:
             param_group['lr'] = cur_lr
 
     save_epoch = osp.join(args.save_path, str(epoch))
-    mkdir(save_epoch)
+    if not os.path.isdir(save_epoch):
+        os.makedirs(save_epoch)
 
     last_count_train, last_count_val = train_net(
         args, train_loader, netG, netD, epoch, save_epoch, last_count_train, last_count_val, cur_lr)
