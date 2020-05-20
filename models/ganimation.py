@@ -99,7 +99,6 @@ class GANimation(BaseModel):
         self._input_real_img.resize_(input['real_img'].size()).copy_(input['real_img'])
         self._input_real_cond.resize_(input['real_cond'].size()).copy_(input['real_cond'])
         self._input_desired_cond.resize_(input['desired_cond'].size()).copy_(input['desired_cond'])
-        self._input_real_id = input['sample_id']
         self._input_real_img_path = input['real_img_path']
 
         if len(self._gpu_ids) > 0:

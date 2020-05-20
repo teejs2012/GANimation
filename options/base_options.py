@@ -10,8 +10,6 @@ class BaseOptions():
 
     def initialize(self):
         self._parser.add_argument('--data_dir', type=str, help='path to dataset')
-        self._parser.add_argument('--train_ids_file', type=str, default='train_ids.csv', help='file containing train ids')
-        self._parser.add_argument('--test_ids_file', type=str, default='test_ids.csv', help='file containing test ids')
         self._parser.add_argument('--images_folder', type=str, default='imgs', help='images folder')
         self._parser.add_argument('--aus_file', type=str, default='aus_openface.pkl', help='file containing samples aus')
 
@@ -25,7 +23,7 @@ class BaseOptions():
         self._parser.add_argument('--model', type=str, default='ganimation', help='model to run[au_net_model]')
         self._parser.add_argument('--n_threads_test', default=1, type=int, help='# threads for loading data')
         self._parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
-        self._parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
+        self._parser.add_argument('--shuffle', action="store_true", default=False, help='do shuffle the dataset')
         self._parser.add_argument('--do_saturate_mask', action="store_true", default=False, help='do use mask_fake for mask_cyc')
 
 
