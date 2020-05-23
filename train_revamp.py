@@ -97,33 +97,21 @@ if args.continue_train:
     G_checkpoint = torch.load(osp.join(args.save_path, str(args.continue_epoch), str(
         args.continue_epoch) + '_G_net_' + 'checkpoint.pth.tar'))
     netG.load_state_dict(G_checkpoint['model_state_dict'])
-    G_optim_checkpoint = torch.load(osp.join(args.save_path, str(
-        args.continue_epoch), str(args.continue_epoch) + '_G_optim_' + 'checkpoint.pth.tar'))
-    G_optimizer.load_state_dict(G_optim_checkpoint['optimizer_state_dict'])
+    if args.load_optim:
+        G_optim_checkpoint = torch.load(osp.join(args.save_path, str(
+            args.continue_epoch), str(args.continue_epoch) + '_G_optim_' + 'checkpoint.pth.tar'))
+        G_optimizer.load_state_dict(G_optim_checkpoint['optimizer_state_dict'])
 
     D_checkpoint = torch.load(osp.join(args.save_path, str(args.continue_epoch), str(
         args.continue_epoch) + '_D_net_' + 'checkpoint.pth.tar'))
     netD.load_state_dict(D_checkpoint['model_state_dict'])
-    D_optim_checkpoint = torch.load(osp.join(args.save_path, str(
-        args.continue_epoch), str(args.continue_epoch) + '_D_optim_' + 'checkpoint.pth.tar'))
-    D_optimizer.load_state_dict(D_optim_checkpoint['optimizer_state_dict'])
+    if args.load_optim:
+        D_optim_checkpoint = torch.load(osp.join(args.save_path, str(
+            args.continue_epoch), str(args.continue_epoch) + '_D_optim_' + 'checkpoint.pth.tar'))
+        D_optimizer.load_state_dict(D_optim_checkpoint['optimizer_state_dict'])
 
     last_count_train = args.continue_epoch * len(train_loader)
     last_count_val = last_count_train * args.val_num // args.val_freq
-
-class GANLoss(nn.Module):
-
-    def __init__(self):
-        super(GANLoss, self).__init__()
-        self.loss_function = nn.MSELoss()
-
-    def forward(self, logit, is_real):
-        if is_real:
-            target = torch.ones_like(logit)
-        else:
-            target = torch.zeros_like(logit)
-
-        return self.loss_function(logit, target)
 
 def SmoothLoss(mat):
     return torch.sum(torch.abs(mat[:, :, :, :-1] - mat[:, :, :, 1:])) + \
@@ -143,7 +131,7 @@ def calc_gradient_penalty(netD, real_data, fake_data, args):
 
 criterion_MSE = nn.MSELoss().cuda()
 criterion_L1 = nn.L1Loss().cuda()
-criterionGAN = GANLoss().cuda()
+# criterionGAN = GANLoss().cuda()
 
 def tb_view_pic(img, fake_img, fake_mask, fake_img_masked, rec_img, rec_mask, rec_img_masked):
     imgs = [img, fake_img, fake_mask, fake_img_masked, rec_img, rec_mask, rec_img_masked]
@@ -187,11 +175,11 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
         D_optimizer.zero_grad()
 
         output_real, pred_cond_real = netD(img)
-        lossD_real = -output_real.mean()
+        lossD_real = -args.lambda_gan * torch.mean(output_real)
         # print(real_cond)
         # print(pred_cond_real)
 
-        lossD_cond = args.lambda_D_cond * criterion_MSE(real_cond,pred_cond_real)
+        lossD_cond = args.lambda_D_cond * criterion_MSE(real_cond,pred_cond_real) / args.batch_size
 
         with torch.no_grad():
             fake_img, fake_mask = netG(img,desired_cond)
@@ -200,14 +188,15 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
         fake_img_masked = fake_mask * img + (1 - fake_mask) * fake_img
 
         output_fake, _ = netD(fake_img_masked)
-        lossD_fake = output_fake.mean()
+        lossD_fake = args.lambda_gan*torch.mean(output_fake)
 
         lossD_Gan = lossD_real + lossD_fake
         lossD = lossD_Gan + lossD_cond
         writer.add_scalar('Tdata/lossD_Gan', lossD_Gan.item(), last_count_train)
         writer.add_scalar('Tdata/lossD_cond', lossD_cond.item(), last_count_train)
 
-        lossD.backward(retain_graph=True)
+        lossD.backward()
+        D_optimizer.step()
 
         gradient_penalty = calc_gradient_penalty(
             netD, img, fake_img_masked, args)
@@ -229,8 +218,8 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
             fake_img_masked = fake_mask * img + (1 - fake_mask) * fake_img
 
             output,cond = netD(fake_img_masked)
-            lossG_fake = -1 * output.mean()
-            lossG_cond_fake = args.lambda_D_cond * criterion_MSE(cond,desired_cond)
+            lossG_GAN = -args.lambda_gan * torch.mean(output)
+            lossG_cond = args.lambda_D_cond * criterion_MSE(cond,desired_cond) / args.batch_size
 
             #cycle
             rec_img, rec_mask = netG(fake_img_masked,real_cond)
@@ -245,25 +234,26 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
             lossG_mask_2_smooth = SmoothLoss(rec_mask) * args.lambda_mask_smooth
             lossG_mask = lossG_mask_1 + lossG_mask_2 + lossG_mask_1_smooth + lossG_mask_2_smooth
 
-            loss_G = lossG_fake + lossG_cond_fake + lossG_cyc + lossG_mask
+            loss_G = lossG_GAN + lossG_cond + lossG_cyc + lossG_mask
             loss_G.backward()
             G_optimizer.step()
 
             last_count_train += 1
-            writer.add_scalar('Tdata/lossG_fake', lossG_fake.item(), last_count_train)
-            writer.add_scalar('Tdata/lossG_cond_fake',
-                              lossG_cond_fake.item(), last_count_train)
+            writer.add_scalar('Tdata/lossG_GAN', lossG_GAN.item(), last_count_train)
+            writer.add_scalar('Tdata/lossG_cond',
+                              lossG_cond.item(), last_count_train)
             writer.add_scalar('Tdata/lossG_cyc', lossG_cyc.item(), last_count_train)
             writer.add_scalar('Tdata/lossG_mask', lossG_mask.item(), last_count_train)
-
-            end = time.time()
 
             if i% args.display_freq == 0:
                 tb_view_pic(img, fake_img, fake_mask, fake_img_masked, rec_img, rec_mask, rec_img_masked)
 
+        end = time.time()
         if i % args.print_freq == 0:
             print(
                 ('Epoch: [{0}][{1}/{2}], lr: {3}'.format(epoch, i, len(train_loader), cur_lr)))
+            print(real_cond)
+            print(desired_cond)
         if i % args.save_freq == 0:
             # save G
             torch.save({'model_state_dict': netG.state_dict(),
@@ -272,11 +262,11 @@ def train_net(args, train_loader, netG, netD, epoch, save_epoch, last_count_trai
             torch.save({'model_state_dict': netD.state_dict(),
                         }, osp.join(save_epoch, str(epoch) + '_D_net_' + 'checkpoint.pth.tar'))
             # save G
-            torch.save({'optimizer_state_dict': G_optimizer.state_dict(),
-                        }, osp.join(save_epoch, str(epoch) + '_G_optim_' + 'checkpoint.pth.tar'))
+            # torch.save({'optimizer_state_dict': G_optimizer.state_dict(),
+            #             }, osp.join(save_epoch, str(epoch) + '_G_optim_' + 'checkpoint.pth.tar'))
             # save D
-            torch.save({'optimizer_state_dict': D_optimizer.state_dict(),
-                        }, osp.join(save_epoch, str(epoch) + '_D_optim_' + 'checkpoint.pth.tar'))
+            # torch.save({'optimizer_state_dict': D_optimizer.state_dict(),
+            #             }, osp.join(save_epoch, str(epoch) + '_D_optim_' + 'checkpoint.pth.tar'))
         if i % args.val_freq == 0:
             last_count_val = val_net(args,val_loader, netG, netD, save_epoch, last_count_val)
             netG.train()
@@ -299,10 +289,10 @@ def val_net(args,val_loader, netG, netD, save_epoch, last_count_val):
             fake_img_masked = fake_mask * img + (1 - fake_mask) * fake_img
 
             output_fake,pred_cond_fake = netD(fake_img_masked)
-            lossG_fake = -1 * output_fake.mean()
-            loss_cond_fake = args.lambda_D_cond * criterion_MSE(pred_cond_fake,desired_cond)
+            lossG_GAN = -1 * torch.mean(output_fake)
+            loss_cond_fake = args.lambda_D_cond * criterion_MSE(pred_cond_fake,desired_cond) / args.batch_size
             output_real,pred_cond_real = netD(img)
-            loss_cond_real = args.lambda_D_cond * criterion_MSE(pred_cond_real,real_cond)
+            loss_cond_real = args.lambda_D_cond * criterion_MSE(pred_cond_real,real_cond) / args.batch_size
 
             #cycle
             rec_img, rec_mask = netG(fake_img_masked,real_cond)
@@ -319,7 +309,7 @@ def val_net(args,val_loader, netG, netD, save_epoch, last_count_val):
         save_pic(save_epoch, i, img, fake_img, fake_mask, fake_img_masked, rec_img, rec_mask, rec_img_masked)
 
         last_count_val += 1
-        writer.add_scalar('Vdata/lossG_fake', lossG_fake.item(), last_count_val)
+        writer.add_scalar('Vdata/lossG_GAN', lossG_GAN.item(), last_count_val)
         writer.add_scalar('Vdata/loss_cond_fake',
                           loss_cond_fake.item(), last_count_val)
         writer.add_scalar('Vdata/loss_cond_real', loss_cond_real.item(), last_count_val)
