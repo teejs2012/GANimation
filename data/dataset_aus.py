@@ -20,19 +20,19 @@ class AusDataset(DatasetBase):
     def __getitem__(self, index):
         assert (index < self._dataset_size)
 
-        real_img = None
-        real_cond = None
-        while real_img is None or real_cond is None:
-            # get sample data
-            sample_id = self._ids[index]
+        # real_img = None
+        # real_cond = None
+        # while real_img is None or real_cond is None:
+        # get sample data
+        sample_id = self._ids[index]
 
-            real_img, real_img_path = self._get_img_by_id(sample_id)
-            real_cond = self._get_cond_by_id(sample_id)
+        real_img, real_img_path = self._get_img_by_id(sample_id)
+        real_cond = self._get_cond_by_id(sample_id)
 
-            if real_img is None:
-                print('error reading image %s, skipping sample' % sample_id)
-            if real_cond is None:
-                print('error reading aus %s, skipping sample' % sample_id)
+        if real_img is None:
+            print('error reading image %s, skipping sample' % sample_id)
+        if real_cond is None:
+            print('error reading aus %s, skipping sample' % sample_id)
 
         desired_cond = self._generate_random_cond()
 
@@ -45,10 +45,10 @@ class AusDataset(DatasetBase):
         return self._dataset_size
 
     def _read_dataset_paths(self):
-        self._imgs_dir = self._opt.dataset
-
         # read ids
-        json_filenames = glob.glob(self._imgs_dir+'/*/*.json')
+        json_filenames = glob.glob(self._opt.dataset+'/*/*.json')
+        # json_filenames = glob.glob(self._opt.dataset+'/*.json')
+
         self._ids = []
         # self._conds = []
         for filename in json_filenames:
@@ -82,7 +82,8 @@ class AusDataset(DatasetBase):
         filepath = id+'.json'
         with open(filepath) as file:
             _cond = json.load(file)
-            return np.array(_cond,dtype=np.float32)
+        _cond[0] = 1-_cond[0]
+        return np.array(_cond,dtype=np.float32)
 
     def _get_img_by_id(self, id):
         filepath = id+'.jpg'

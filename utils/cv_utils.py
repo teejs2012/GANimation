@@ -1,6 +1,7 @@
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
+import os
 
 def read_cv2_img(path):
     '''
@@ -8,13 +9,16 @@ def read_cv2_img(path):
     :param path: Path to image
     :return: Only returns color images
     '''
-    img = cv2.imread(path, -1)
+
+    img = cv2.imread(path)
 
     if img is not None:
         if len(img.shape) != 3:
+            print('img shape not 3. {}'.format(path))
             return None
-
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    else:
+        print('img is None. {}'.format(path))
 
     return img
 
